@@ -1,0 +1,48 @@
+{
+"update_url": "https://clients2.google.com/service/update2/crx",
+
+  "name": "LINE",
+  "description": "__MSG_appDescription__",
+  "manifest_version": 3,
+  "default_locale": "en",
+  "background": {
+    "scripts": ["background.js"],
+    "type": "module"
+  },
+  "action": {
+    "default_title": "LINE",
+    "default_icon": {
+      "32": "line_logo_48x48_off.png",
+      "48": "line_logo_48x48_off.png",
+      "64": "line_logo_128x128_off.png",
+      "96": "line_logo_128x128_off.png",
+      "128": "line_logo_128x128_off.png"
+    }
+  },
+  "icons": {
+    "32": "line_logo_48x48_on.png",
+    "48": "line_logo_48x48_on.png",
+    "64": "line_logo_128x128_on.png",
+    "96": "line_logo_128x128_on.png",
+    "128": "line_logo_128x128_on.png"
+  },
+  "permissions": [
+    "downloads",
+    "storage",
+    "notifications",
+    "system.display",
+    "cookies"
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "LINEPorted@FoxRefire"
+    }
+  },
+  "version": "3.7.0"
+}
