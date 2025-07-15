@@ -12,11 +12,11 @@
   "action": {
     "default_title": "LINE",
     "default_icon": {
-      "32": "line_logo_48x48_off.png",
-      "48": "line_logo_48x48_off.png",
-      "64": "line_logo_128x128_off.png",
-      "96": "line_logo_128x128_off.png",
-      "128": "line_logo_128x128_off.png"
+      "32": "line_logo_48x48_on.png",
+      "48": "line_logo_48x48_on.png",
+      "64": "line_logo_128x128_on.png",
+      "96": "line_logo_128x128_on.png",
+      "128": "line_logo_128x128_on.png"
     }
   },
   "icons": {
