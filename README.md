@@ -1,19 +1,34 @@
-# LINE Firefox用非公式ポート
+# Unofficial LINE Port for Firefox
 
-## パッチ手順
+## How to Use
+
+This is an unofficial port of the LINE Chrome extension for Firefox. To use this extension:
+
+1. **Download or clone this repository** to your local machine
+2. **Apply the patches** described in the "Patching Procedure" section below
+3. **Load the extension in Firefox**:
+   - Open Firefox and go to `about:debugging`
+   - Click "This Firefox" in the left sidebar
+   - Click "Load Temporary Add-on"
+   - Select the `manifest.json` file from this project directory
+4. **Use LINE**: Click the LINE icon in your Firefox toolbar to open LINE in a popup window
+
+**Note**: This is a temporary installation. The extension will be removed when you restart Firefox. For permanent installation, you would need to package it as a proper Firefox add-on.
+
+## Patching Procedure
 ### * static/js/ltsmSandbox.js
 
 ```shell
 js-beautify -r ./static/js/ltsmSandbox.js
 ```
 
-ファイル中の全ての`window.origin`、`window.location.origin`、`location.origin`を`"chrome-extension://ophjlpahpchlmihnnnihgmmeilfjmjjc"`に置き換え
+Replace all instances of `window.origin`, `window.location.origin`, and `location.origin` in the file with `"chrome-extension://ophjlpahpchlmihnnnihgmmeilfjmjjc"`
 
 ### * manifest.json
 ```diff
     {
-    //省略
-    //省略
+    //omitted
+    //omitted
     "background": {
 --      "service_worker": "background.js",
 ++      "scripts": ["background.js"],
@@ -25,8 +40,8 @@ js-beautify -r ./static/js/ltsmSandbox.js
 --      "cropperSandbox.html"
 --      ]
 --  },
-    //省略
-    //省略
+    //omitted
+    //omitted
 ++  "content_security_policy": {
 ++      "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
 ++  },
@@ -48,8 +63,8 @@ js-beautify -r ./background.js
 
 ```diff
 --  chrome.action.onClicked.addListener((async () => {
---  //省略
---  //省略
+--  //omitted
+--  //omitted
 --  }));
 ++  if(chrome.windows){
 ++      chrome.action.onClicked.addListener(() => {
@@ -69,36 +84,36 @@ js-beautify -r ./background.js
 
 ## Writeup
 
-まず、一般的なポート手順であるマニフェスト内のbackground.service_workerをbackground.scriptsに変更しbrowser_specific_settingsの追加を行って`moz-extension://Internal-UUID/index.html`を開いてみる。
-このままではWebAssembly実行でCSPエラーが発生したため更にマニフェストにcontent_security_policyを追加して再実行。
+First, I performed the typical porting procedure by changing `background.service_worker` to `background.scripts` in the manifest and adding `browser_specific_settings`, then tried opening `moz-extension://Internal-UUID/index.html`.
+This resulted in a CSP error during WebAssembly execution, so I added `content_security_policy` to the manifest and ran it again.
 <img width="1522" height="123" alt="1" src="https://github.com/user-attachments/assets/21f30da6-24ea-492f-8830-70913804e2a4" />
 
-まだ、ltsm_not_availableというエラーが発生していたが、スタックトレースからは直接の原因箇所が明らかではなかったため、大元のエラー箇所を探ることにする
+A `ltsm_not_available` error was still occurring, but the stack trace didn't clearly show the direct cause, so I decided to investigate the root source of the error.
 <img width="1522" height="302" alt="2" src="https://github.com/user-attachments/assets/c6cba9df-2fd8-454b-9e7e-a96b3376a1ec" />
 
-デバッガーからltsmSandboxを呼び出している`setup()`の`catch`内にブレークポイントを設定して、監視式に`console.log(e)`と登録してみる
+I set a breakpoint in the `catch` block of `setup()` which calls ltsmSandbox from the debugger, and registered `console.log(e)` as a watch expression.
 <img width="2473" height="671" alt="3" src="https://github.com/user-attachments/assets/b3ff9733-fa41-49ca-a858-f4c5a3d11ce9" />
 
-コンソールにさらに上流のエラーと見られる`Error: sandbox_error`が記録された
+An upstream error `Error: sandbox_error` was logged to the console.
 <img width="1522" height="398" alt="4" src="https://github.com/user-attachments/assets/05a1d771-f41c-44d1-8f8d-f28c38277844" />
 
-更に`this.sandbox`をエクスポートしてみて実際に`init()`、`sendMessage()`を実行してみると`sendMessage`内で`sandbox_error`が発生していた
+When I exported `this.sandbox` and actually executed `init()` and `sendMessage()`, `sandbox_error` occurred within `sendMessage`.
 <img width="1522" height="398" alt="5" src="https://github.com/user-attachments/assets/b0e33602-6512-4111-8b2a-90a29b3349f7" />
 
-しかしスタックトレースから辿ったところこのエラーも根本原因のエラーではなく、`jp`クラス内で`r(new Op(_d.SANDBOX_ERROR))`というコードによってスローされていることが分かった。
-更に根本的な原因を探るため`jp`クラスのコンストラクタ内にブレークポイントを設定し、監視式に`console.log(t.data)`を登録
+However, tracing through the stack trace revealed that this error wasn't the root cause either, but was being thrown by code `r(new Op(_d.SANDBOX_ERROR))` within the `jp` class.
+To investigate the fundamental cause further, I set a breakpoint in the constructor of the `jp` class and registered `console.log(t.data)` as a watch expression.
 <img width="2473" height="1019" alt="6" src="https://github.com/user-attachments/assets/b039ad70-666c-4e82-8fc3-19384bc2244e" />
 
 
-根本原因とみられるエラー`Invalid origin: moz-extension://Internal-UUID`が確認できた
+The root cause error `Invalid origin: moz-extension://Internal-UUID` was confirmed.
 <img width="2473" height="606" alt="7" src="https://github.com/user-attachments/assets/3f4d9a02-84be-4c7c-a3d9-995579799375" />
 
-`ltsmSandbox.js`をjs-beautifyでインデントを整えてから開き、ファイル内で`Invalid origin`と検索してみる
-コードを見ると拡張機能のオリジンに応じて使用するトークンを選択しているようだ。
-`moz-extension://Internal-UUID`はトークンと対応していないため、エラーが発生していることが分かった。
+I opened `ltsmSandbox.js` after formatting it with js-beautify and searched for `Invalid origin` within the file.
+Looking at the code, it appears to select tokens based on the extension's origin.
+Since `moz-extension://Internal-UUID` doesn't correspond to any token, an error was occurring.
 <img width="1882" height="306" alt="8" src="https://github.com/user-attachments/assets/7a6569eb-bf55-445f-bc3d-c8a62a947a05" />
 
-そこで、`ltsmSandbox.js`内の全ての現在のオリジンを取得している部分の処理を本来のオリジン`"chrome-extension://ophjlpahpchlmihnnnihgmmeilfjmjjc"`に上書きしてみたところ、正しく動作するようになった。
+Therefore, I overwrote all parts in `ltsmSandbox.js` that retrieve the current origin with the original origin `"chrome-extension://ophjlpahpchlmihnnnihgmmeilfjmjjc"`, and it began working correctly.
 <img width="1522" height="1220" alt="9" src="https://github.com/user-attachments/assets/72480461-b2fd-452e-b5ca-4cbb03fa0764" />
 <img width="1522" height="1220" alt="10" src="https://github.com/user-attachments/assets/e7ac1dc7-30c9-4d88-822d-876e67213392" />
 
